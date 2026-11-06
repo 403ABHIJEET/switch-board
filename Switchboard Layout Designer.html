@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Switchboard Layout Designer</title>
+<style>
+:root{
+  --bg:#e9ecef;--panel:#ffffff;--ink:#1d2430;--mute:#5d6878;--line:#cfd5dd;
+  --plate:#f7f6f1;--cut:#dedcd3;--accent:#0b6e4f;--accentInk:#fff;--sel:#fff3c4;
+  --sw:#2b3340;--reg:#b4472b;--mcb:#1f5fa8;--sock:#2b3340;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#14181e;--panel:#1e242d;--ink:#e8ebf0;--mute:#9aa5b5;--line:#343c49;
+  --plate:#d9d8d0;--cut:#bfbdb3;--accent:#3fbf94;--accentInk:#07281d;--sel:#5a4d16;
+  --sw:#2b3340;--reg:#d9603f;--mcb:#4d8fe0;--sock:#2b3340;}}
+:root[data-theme="dark"]{
+  --bg:#14181e;--panel:#1e242d;--ink:#e8ebf0;--mute:#9aa5b5;--line:#343c49;
+  --plate:#d9d8d0;--cut:#bfbdb3;--accent:#3fbf94;--accentInk:#07281d;--sel:#5a4d16;
+  --sw:#2b3340;--reg:#d9603f;--mcb:#4d8fe0;--sock:#2b3340;}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 "Segoe UI",system-ui,Roboto,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:16px;display:grid;gap:16px;grid-template-columns:300px 1fr}
+@media(max-width:820px){.wrap{grid-template-columns:1fr}}
+h1{font-size:20px;margin:0 0 4px}
+p.sub{margin:0 0 12px;color:var(--mute);font-size:13px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+.card+.card{margin-top:12px}
+h2{font-size:14px;margin:0 0 10px}
+.row{display:flex;gap:10px}
+label{display:block;font-size:13px;color:var(--mute);flex:1}
+input[type=number]{width:100%;margin-top:4px;padding:8px;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px}
+.tools{display:grid;gap:8px}
+.tool{display:flex;align-items:center;gap:10px;padding:8px 10px;border:2px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.tool[aria-pressed=true]{border-color:var(--accent);background:var(--sel)}
+.tool:focus-visible,button:focus-visible,.cell:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.tool svg{flex:none;width:44px;height:44px}
+.tool small{display:block;color:var(--mute);font-size:12px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.btn{padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:inherit;cursor:pointer}
+.btn.primary{background:var(--accent);color:var(--accentInk);border-color:var(--accent)}
+.boardbox{overflow-x:auto;padding:6px}
+.board{display:grid;gap:10px;background:var(--plate);padding:18px;border-radius:8px;border:2px solid #9a988e;width:max-content;margin:auto;box-shadow:0 2px 0 #0002}
+.cell{width:84px;height:84px;background:var(--cut);border:2px solid #8f8d83;border-radius:6px;display:grid;place-items:center;cursor:pointer;padding:0}
+.cell:hover{border-color:var(--accent)}
+.cell svg{width:76px;height:76px}
+.cell .empty{font-size:22px;color:#777}
+.stats{display:grid;grid-template-columns:1fr auto;gap:4px 12px;font-size:14px}
+.stats b{text-align:right}
+.hint{font-size:12px;color:var(--mute);margin:8px 0 0}
+.size{font-size:13px;color:var(--mute);margin:0 0 8px;text-align:center}
+@media print{.side,.hint{display:none}.wrap{display:block}body{background:#fff}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="side">
+  <div class="card">
+    <h1>Switchboard designer</h1>
+    <p class="sub">Choose how many square cutouts the board has, then fill each square.</p>
+    <div class="row">
+      <label>Rows<input id="rows" type="number" min="1" max="12" value="2"></label>
+      <label>Columns<input id="cols" type="number" min="1" max="12" value="3"></label>
+    </div>
+    <label style="margin-top:10px">Square size (mm)<input id="mm" type="number" min="40" max="200" value="75"></label>
+    <p class="hint">Total squares: <b id="tot">6</b></p>
+  </div>
+  <div class="card">
+    <h2>What goes in a square</h2>
+    <div class="tools" id="tools"></div>
+    <p class="hint">Pick an item, then click squares to place it. Click a square with the Empty tool to clear it.</p>
+    <div class="btns">
+      <button class="btn" id="fill">Fill all with this</button>
+      <button class="btn" id="clear">Clear board</button>
+      <button class="btn primary" id="print">Print</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Parts list</h2>
+    <div class="stats" id="stats"></div>
+  </div>
+</div>
+<div class="card">
+  <p class="size" id="size"></p>
+  <div class="boardbox"><div class="board" id="board"></div></div>
+</div>
+</div>
+<script>
+(function(){
+var TYPES={
+ empty:{name:"Empty",desc:"Blank cover plate"},
+ sw2:{name:"2 Switches",desc:"Two switches in one square"},
+ sock:{name:"Socket",desc:"1 socket fills the square"},
+ mcb:{name:"MCB",desc:"1 MCB fills the square"},
+ reg2:{name:"2 Regulators",desc:"Two fan regulators"},
+ swreg:{name:"Switch + Regulator",desc:"One of each"}
+};
+function sw(x,y){return '<rect x="'+x+'" y="'+y+'" width="26" height="34" rx="3" fill="var(--sw)"/><rect x="'+(x+4)+'" y="'+(y+4)+'" width="18" height="12" rx="2" fill="#f3f3f3"/>';}
+function reg(x,y){return '<circle cx="'+x+'" cy="'+y+'" r="15" fill="var(--reg)"/><circle cx="'+x+'" cy="'+y+'" r="9" fill="#f3f3f3"/><rect x="'+(x-1.5)+'" y="'+(y-13)+'" width="3" height="10" fill="var(--reg)"/>';}
+var ART={
+ empty:'',
+ sw2:sw(8,23)+sw(42,23),
+ sock:'<rect x="12" y="12" width="52" height="52" rx="6" fill="var(--sock)"/><circle cx="26" cy="38" r="4" fill="#f3f3f3"/><circle cx="50" cy="38" r="4" fill="#f3f3f3"/><circle cx="38" cy="22" r="4" fill="#f3f3f3"/><circle cx="38" cy="54" r="4" fill="#f3f3f3"/>',
+ mcb:'<rect x="22" y="8" width="32" height="60" rx="4" fill="var(--mcb)"/><rect x="28" y="16" width="20" height="22" rx="2" fill="#f3f3f3"/><rect x="30" y="20" width="16" height="10" fill="var(--mcb)"/><rect x="28" y="46" width="20" height="14" rx="2" fill="#f3f3f3"/>',
+ reg2:reg(22,38)+reg(54,38),
+ swreg:sw(6,21)+reg(54,38)
+};
+function icon(t){return '<svg viewBox="0 0 76 76" aria-hidden="true">'+ART[t]+'</svg>';}
+var rowsEl=document.getElementById('rows'),colsEl=document.getElementById('cols'),mmEl=document.getElementById('mm');
+var boardEl=document.getElementById('board'),toolsEl=document.getElementById('tools');
+var cur='sw2',grid=[];
+function clamp(v,a,b){v=parseInt(v,10);if(isNaN(v))v=a;return Math.max(a,Math.min(b,v));}
+function resize(){
+  var r=clamp(rowsEl.value,1,12),c=clamp(colsEl.value,1,12),g=[];
+  for(var i=0;i<r;i++){g.push([]);for(var j=0;j<c;j++){g[i].push((grid[i]&&grid[i][j])||'empty');}}
+  grid=g;render();
+}
+function render(){
+  var r=grid.length,c=grid[0].length;
+  boardEl.style.gridTemplateColumns='repeat('+c+',84px)';
+  boardEl.innerHTML='';
+  grid.forEach(function(row,i){row.forEach(function(t,j){
+    var b=document.createElement('button');b.className='cell';
+    b.setAttribute('aria-label','Row '+(i+1)+', column '+(j+1)+': '+TYPES[t].name);
+    b.innerHTML=t==='empty'?'<span class="empty">+</span>':icon(t);
+    b.onclick=function(){grid[i][j]=cur;render();};
+    boardEl.appendChild(b);
+  });});
+  document.getElementById('tot').textContent=r*c;
+  var m=clamp(mmEl.value,40,200),pad=30,gap=10;
+  var w=c*m+(c-1)*gap+pad*2,h=r*m+(r-1)*gap+pad*2;
+  document.getElementById('size').textContent=r+' rows × '+c+' columns · approx. plate '+w+' × '+h+' mm';
+  stats();
+}
+function stats(){
+  var n={};Object.keys(TYPES).forEach(function(k){n[k]=0;});
+  grid.forEach(function(r){r.forEach(function(t){n[t]++;});});
+  var sws=n.sw2*2+n.swreg,regs=n.reg2*2+n.swreg;
+  var rows=[['Switches',sws],['Sockets',n.sock],['MCBs',n.mcb],['Regulators',regs],['Squares used',grid.length*grid[0].length-n.empty],['Squares empty',n.empty]];
+  document.getElementById('stats').innerHTML=rows.map(function(x){return '<span>'+x[0]+'</span><b>'+x[1]+'</b>';}).join('');
+}
+Object.keys(TYPES).forEach(function(k){
+  var b=document.createElement('button');b.className='tool';b.dataset.k=k;
+  b.innerHTML=icon(k)+'<span>'+TYPES[k].name+'<small>'+TYPES[k].desc+'</small></span>';
+  b.onclick=function(){cur=k;sync();};
+  toolsEl.appendChild(b);
+});
+function sync(){[].forEach.call(toolsEl.children,function(b){b.setAttribute('aria-pressed',b.dataset.k===cur);});}
+document.getElementById('fill').onclick=function(){grid=grid.map(function(r){return r.map(function(){return cur;});});render();};
+document.getElementById('clear').onclick=function(){grid=grid.map(function(r){return r.map(function(){return 'empty';});});render();};
+document.getElementById('print').onclick=function(){window.print();};
+rowsEl.oninput=colsEl.oninput=resize;mmEl.oninput=render;
+sync();resize();
+})();
+</script>
+</body>
+</html>
